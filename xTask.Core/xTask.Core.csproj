@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\xTask.Domain\xTask.Domain.csproj" />
+    <ProjectReference Include="..\xTask.Language\xTask.Language.csproj" />
+    <ProjectReference Include="..\xTask.SharedEntities\xTask.SharedEntities.csproj" />
+  </ItemGroup>
+
+</Project>
