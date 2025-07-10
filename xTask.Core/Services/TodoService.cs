@@ -93,6 +93,28 @@ namespace xTask.Core.Services
             await _todoRep.DeleteAsync(id);
         }
 
+        public async System.Threading.Tasks.Task<PaginatedResultDTO<TodoDTO>> GetPaginatedAsync(int page = 1, int pageSize = 10)
+        {
+            var query = AsQueryable();
+            var totalCount = await System.Threading.Tasks.Task.FromResult(query.Count());
+            var skip = (page - 1) * pageSize;
+            
+            var data = await System.Threading.Tasks.Task.FromResult(query
+                .OrderBy(x => x.Name)
+                .ThenBy(x => x.CreatedOn)
+                .Skip(skip)
+                .Take(pageSize)
+                .ToList());
+
+            return new PaginatedResultDTO<TodoDTO>
+            {
+                Data = data,
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize
+            };
+        }
+
 
     }
 }

@@ -62,16 +62,16 @@ namespace xTask.Infrastructure.Data
 
         public async Task<TEntity> UpdateAsync(TEntity entityToUpdate,  CancellationToken cancellationToken = default)
         {
-            //get do valor date created e user
-            Tuple<DateTime, string> aux = (from cursor in _dbSet
-                             where cursor.ID == entityToUpdate.ID
-                             select new Tuple<DateTime, string>(cursor.CreatedOn, cursor.CreatedBy)
-                                 ).FirstOrDefault();
+            // Optimized: Get created date and user in a more efficient way using AsNoTracking
+            var existingEntity = await _dbSet.AsNoTracking()
+                .Where(e => e.ID == entityToUpdate.ID)
+                .Select(e => new { e.CreatedOn, e.CreatedBy })
+                .FirstOrDefaultAsync(cancellationToken);
 
-            if (aux != null)
+            if (existingEntity != null)
             {
-                entityToUpdate.CreatedBy = aux.Item2;
-                entityToUpdate.CreatedOn = aux.Item1;
+                entityToUpdate.CreatedBy = existingEntity.CreatedBy;
+                entityToUpdate.CreatedOn = existingEntity.CreatedOn;
             }
 
             entityToUpdate.ModifiedBy = _user.GetUserName();
@@ -79,7 +79,7 @@ namespace xTask.Infrastructure.Data
 
             _context.Entry(entityToUpdate).State = EntityState.Modified;
 
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(cancellationToken);
 
             return entityToUpdate;
         }

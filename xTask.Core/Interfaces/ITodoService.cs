@@ -14,5 +14,6 @@ namespace xTask.Core.Interfaces
         Task<TodoDTO> CreateAsync(TodoDTO model);
         Task<TodoDTO> UpdateAsync(TodoDTO model);
         Task DeleteAsync(int id);
+        Task<PaginatedResultDTO<TodoDTO>> GetPaginatedAsync(int page = 1, int pageSize = 10);
     }
 }

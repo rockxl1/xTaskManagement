@@ -35,6 +35,32 @@ namespace xTask.Infrastructure.Data
             }
         }
 
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            // Add indexes for performance optimization
+            modelBuilder.Entity<Todo>()
+                .HasIndex(e => e.CreatedBy)
+                .HasDatabaseName("IX_Todo_CreatedBy");
+
+            modelBuilder.Entity<Domain.Entities.Task>()
+                .HasIndex(e => e.CreatedBy)
+                .HasDatabaseName("IX_Task_CreatedBy");
+
+            modelBuilder.Entity<Domain.Entities.Task>()
+                .HasIndex(e => e.TodoID)
+                .HasDatabaseName("IX_Task_TodoID");
+
+            modelBuilder.Entity<Domain.Entities.Task>()
+                .HasIndex(e => new { e.CreatedBy, e.TodoID })
+                .HasDatabaseName("IX_Task_CreatedBy_TodoID");
+
+            modelBuilder.Entity<Domain.Entities.Task>()
+                .HasIndex(e => new { e.TodoID, e.Order })
+                .HasDatabaseName("IX_Task_TodoID_Order");
+        }
+
         public DbSet<Todo> Todos { get; set; }
         public DbSet<Domain.Entities.Task> Tasks { get; set; }
        

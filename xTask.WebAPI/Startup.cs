@@ -38,8 +38,35 @@ namespace xTask.WebAPI
         {
             string connectionString = Configuration.GetConnectionString("xTaskConnection");
 
-            services.AddDbContext<xTaskManagementContext>(x => x.UseSqlServer(connectionString));
-            services.AddDbContext<AppIdentityDbContext>(options => options.UseSqlServer(connectionString));
+            // Optimized Entity Framework configuration for better performance
+            services.AddDbContextPool<xTaskManagementContext>(options =>
+            {
+                options.UseSqlServer(connectionString, sqlOptions =>
+                {
+                    sqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 3,
+                        maxRetryDelay: TimeSpan.FromSeconds(5),
+                        errorNumbersToAdd: null);
+                    sqlOptions.CommandTimeout(30); // Set command timeout
+                });
+                options.EnableServiceProviderCaching();
+                options.EnableSensitiveDataLogging(false);
+                options.ConfigureWarnings(warnings => warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.RowLimitingOperationWithoutOrderByWarning));
+            }, poolSize: 32);
+
+            services.AddDbContextPool<AppIdentityDbContext>(options => 
+            {
+                options.UseSqlServer(connectionString, sqlOptions =>
+                {
+                    sqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 3,
+                        maxRetryDelay: TimeSpan.FromSeconds(5),
+                        errorNumbersToAdd: null);
+                    sqlOptions.CommandTimeout(30); // Set command timeout
+                });
+                options.EnableServiceProviderCaching();
+                options.EnableSensitiveDataLogging(false);
+            }, poolSize: 32);
 
             services.AddIdentity<ApplicationUser, IdentityRole>(options =>
             {
@@ -95,6 +122,7 @@ namespace xTask.WebAPI
                 });
             });
             services.AddHttpContextAccessor();
+            services.AddMemoryCache(); // Add memory caching for better performance
             services.AddScoped(typeof(IRepository<>), typeof(BaseRepository<>));
           
             services.AddScoped<ITaskService, TaskService>(); 
