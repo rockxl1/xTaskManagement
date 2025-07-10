@@ -22,7 +22,19 @@ namespace xTask.WebAPI.Controllers
         }
 
         [HttpGet]
-        public async System.Threading.Tasks.Task<ActionResult<List<TaskDTO>>> Get(int? todoId) //todo, put pagination (total_rows, skip, etc, or ODATA :))
+        public async System.Threading.Tasks.Task<ActionResult<PaginatedResultDTO<TaskDTO>>> Get(
+            int? todoId, 
+            [FromQuery] int page = 1, 
+            [FromQuery] int pageSize = 10)
+        {
+            if (pageSize > 100) pageSize = 100; // Limit page size to prevent abuse
+            if (page < 1) page = 1;
+
+            return Ok(await _service.GetPaginatedAsync(todoId, page, pageSize));
+        }
+
+        [HttpGet("all")]
+        public async System.Threading.Tasks.Task<ActionResult<List<TaskDTO>>> GetAll(int? todoId) //Legacy endpoint for backward compatibility
         {
             var query = _service.AsQueryable();
 

@@ -16,5 +16,6 @@ namespace xTask.Core.Interfaces
         Task DeleteAsync(int id);
         Task SetOrderAsync(int id, int order);
         Task MoveAsync(int id, int todoId);
+        Task<PaginatedResultDTO<TaskDTO>> GetPaginatedAsync(int? todoId, int page = 1, int pageSize = 10);
     }
 }

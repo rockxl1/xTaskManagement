@@ -54,18 +54,22 @@ namespace xTask.Core.Services
         {
            
             //1º check if the todoID is for this user
-
-            if (_todoService.FindAsync(model.TodoID) == null)
+            if (await _todoService.FindAsync(model.TodoID) == null)
             {
                 throw new UnauthorizedAccessException("Invalid TodoID");
             }
+
+            // Optimized: Get the count in a more efficient way
+            int nextOrder = _taskRep.AsQueryable()
+                .Where(x => x.TodoID == model.TodoID)
+                .Count() + 1;
 
             Task task = new Task()
             {
                 Title = model.Title,
                 Notes = model.Notes,
                 DueDate = model.DueDate,
-                Order = _taskRep.AsQueryable().Where(x=>x.TodoID == model.TodoID).Count() + 1, //to the end of list
+                Order = nextOrder, //to the end of list
                 TodoID = model.TodoID,
                 TotalMoved = 0,
             };
@@ -97,7 +101,15 @@ namespace xTask.Core.Services
                 throw new UnauthorizedAccessException();
             }
 
-            int totalMoved = _taskRep.AsQueryable().Where(x => x.ID == model.ID).Select(x => x.TotalMoved).First();
+            // Optimized: Get totalMoved in a single query instead of separate query
+            var taskEntity = _taskRep.AsQueryable().Where(x => x.ID == model.ID)
+                .Select(x => new { x.TotalMoved, x.Order, x.TodoID })
+                .FirstOrDefault();
+
+            if (taskEntity == null)
+            {
+                throw new UnauthorizedAccessException();
+            }
 
             Task task = new Task()
             {
@@ -105,9 +117,9 @@ namespace xTask.Core.Services
                 Title = model.Title,
                 Notes = model.Notes,
                 DueDate = model.DueDate,
-                TotalMoved = totalMoved,
-                Order = actual.Order, //set the old value. Update order is other method
-                TodoID = actual.TodoID //set the old value. transfer task is other method
+                TotalMoved = taskEntity.TotalMoved,
+                Order = taskEntity.Order, //set the old value. Update order is other method
+                TodoID = taskEntity.TodoID //set the old value. transfer task is other method
             };
 
             task = await _taskRep.UpdateAsync(task);
@@ -159,34 +171,60 @@ namespace xTask.Core.Services
         {
             //1º check if the todoID is for this user
 
-            if (_todoService.FindAsync(id) == null)
+            if (_todoService.FindAsync(todoId) == null)
             {
                 throw new UnauthorizedAccessException("Invalid TodoID");
             }
 
-            //2º Get the actual task
-            TaskDTO actual = AsQueryable().Where(x => x.ID == id).FirstOrDefault();
+            //2º Get the actual task - optimized to get all needed data in one query
+            var taskData = _taskRep.AsQueryable()
+                .Where(x => x.ID == id && x.CreatedBy == _user.GetUserName())
+                .Select(x => new { x.ID, x.Title, x.Notes, x.DueDate, x.Order, x.TotalMoved })
+                .FirstOrDefault();
             
-            if (actual == null)
+            if (taskData == null)
             {
                 throw new UnauthorizedAccessException();
             }
 
-
-            actual.TodoID = todoId;
-
-            int totalMoved = _taskRep.AsQueryable().Where(x => x.ID == id).Select(x => x.TotalMoved).First();
-
             await _taskRep.UpdateAsync(new Task()
             {
-                ID = actual.ID,
-                Title = actual.Title,
-                Notes = actual.Notes,
-                DueDate = actual.DueDate,
-                Order = actual.Order,
-                TotalMoved= totalMoved+1,
-                TodoID = actual.TodoID
+                ID = taskData.ID,
+                Title = taskData.Title,
+                Notes = taskData.Notes,
+                DueDate = taskData.DueDate,
+                Order = taskData.Order,
+                TotalMoved = taskData.TotalMoved + 1,
+                TodoID = todoId
             });
+        }
+
+        public async System.Threading.Tasks.Task<PaginatedResultDTO<TaskDTO>> GetPaginatedAsync(int? todoId, int page = 1, int pageSize = 10)
+        {
+            var query = AsQueryable();
+
+            if (todoId.HasValue)
+            {
+                query = query.Where(x => x.TodoID == todoId.Value);
+            }
+
+            var totalCount = await System.Threading.Tasks.Task.FromResult(query.Count());
+            var skip = (page - 1) * pageSize;
+            
+            var data = await System.Threading.Tasks.Task.FromResult(query
+                .OrderBy(x => x.Order)
+                .ThenBy(x => x.CreatedOn)
+                .Skip(skip)
+                .Take(pageSize)
+                .ToList());
+
+            return new PaginatedResultDTO<TaskDTO>
+            {
+                Data = data,
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize
+            };
         }
     }
 }
